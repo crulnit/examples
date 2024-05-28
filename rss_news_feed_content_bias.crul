@@ -1,0 +1,34 @@
+seed ```json
+{feed: [
+  'http://rss.cnn.com/rss/cnn_topstories.rss',
+  'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en',
+  'https://moxie.foxnews.com/google-publisher/latest.xml',
+  'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',
+]}```
+|| normalize feed
+|| api GET $feed$
+  --headers "{'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'}"
+  --serializer xml
+|| normalize rss.channel
+|| rename title.0 publisher --table "item,publisher"
+|| normalize item
+|| parseTimestamp pubDate.0
+|| rename
+  title.0 title
+  _timestamp.iso date
+  link.0 url
+  --table "title,date,url,publisher"
+|| prompt "
+Classify the news headline as one of:\n
+Politics, Business, Technology, Entertainment, Sports, Science, Crime, Health or Other.
+The News Headline input:\n
+$title$
+" --enrich --cache true
+|| rename response category _previous.title title _previous.date date
+_previous.url url
+  _previous.publisher publisher --table "title,category,date,url,publisher"
+|| lowercase category    
+|| groupBy category
+|| filter "(category == 'politics')"
+|| normalize _group
+|| countOf publisher
